@@ -73,4 +73,5 @@ If the MQTT connection has been disconnected 5 times altogether, the Arduino and
 hasn't been established in 3 consecutive tries.
 
 It's possible to print amount of free RAM memory of Arduino via serial port by uncommenting `#define RAM_DEBUG` line
+
 It's possible to print more debug information via serial port by uncommenting `#define DEBUG` line
