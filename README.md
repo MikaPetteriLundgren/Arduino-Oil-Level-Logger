@@ -15,7 +15,9 @@ about actual distance from the sensor to level of oil. Thermal expansion of the 
 All the data to the Domoticz is transmitted via WiFi in LAN using the MQTT protocol.
 
 In practice all the "intelligence" is in the Domoticz and therefore for example decision about is oil tank empty enough for notification
-of end user is done by the Domoticz.
+to end user is done by the Domoticz.
+
+More information about the system can be found from the [Domoticz forum](https://www.domoticz.com/forum/viewtopic.php?f=38&t=8647)
 
 Arduino-Oil-Level-Logger sketch will need following SW libraries and HW to work:
 
