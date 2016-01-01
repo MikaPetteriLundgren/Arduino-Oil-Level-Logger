@@ -52,6 +52,9 @@ WiFiClient wifiClient; // Initialize Arduino Wifi Client
 char topic[] = "domoticz/in"; // Default incoming topic in Domoticz is domoticz/in
 int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reason, this variable is increment by 1
 
+// MQTT callback function header
+void mqttCallback(char* topic, byte* payload, unsigned int length);
+
 //MQTT initialization
 PubSubClient mqttClient(MQTT_SERVER, 1883, mqttCallback, wifiClient);
 char clientID[50];
