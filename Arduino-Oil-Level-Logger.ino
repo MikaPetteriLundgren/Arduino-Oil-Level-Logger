@@ -4,8 +4,10 @@
    R7 is mounted (0R) in Wifi shield in order to reset the shield at startup. System reset will take place if MQTT connection has failed 5 times altogether or
    if Wifi connection hasn't been established in 3 consecutive tries.
    Sketch includes a possibility to check the amount of free RAM and print more information about ultrasonic measurements.
-   */
 
+   The sketch needs oilLevelLoggerSettings.h header file in order to work. The header file includes settings for the sketch.
+   */
+#include "oilLevelLoggerSettings.h" // Header file containing settings for the sketch included. 
 #include <WiFi.h>
 #include <OneWire.h>
 #include <SPI.h>
@@ -40,15 +42,13 @@ OneWire oneWire(ONE_WIRE_BUS); // Setup a oneWire instance to communicate with a
 DallasTemperature sensors(&oneWire); // Pass our oneWire reference to Dallas Temperature library
 
 // Wifi network settings
-char ssid[] = "NETWORK_SSID"; // Network SSID (name)
-char pass[] = "NETWORK_PASSWORD"; // Network password
+char ssid[] = NETWORK_SSID; // Network SSID (name) is defined in oilLevelLoggerSettings.h header file
+char pass[] = NETWORK_PASSWORD; // Network password is defined in oilLevelLoggerSettings.h header file
 int status = WL_IDLE_STATUS; // Wifi status
 IPAddress ip; // IP address
 WiFiClient wifiClient; // Initialize Arduino Wifi Client
 
 //MQTT configuration
-#define  DEVICE_ID  "Uno" // Name of the device
-#define MQTT_SERVER "192.168.1.1" // IP address of MQTT server
 char topic[] = "domoticz/in"; // Default incoming topic in Domoticz is domoticz/in
 int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reason, this variable is increment by 1
 
@@ -56,7 +56,7 @@ int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reas
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 
 //MQTT initialization
-PubSubClient mqttClient(MQTT_SERVER, 1883, mqttCallback, wifiClient);
+PubSubClient mqttClient(MQTT_SERVER, 1883, mqttCallback, wifiClient); // MQTT_SERVER constructor parameter is defined in oilLevelLoggerSettings.h header file
 char clientID[50];
 char msg[80];
 
@@ -112,7 +112,7 @@ void setup()
 
   //Create MQTT client String
   String clientIDStr = "Arduino-";
-  clientIDStr.concat(DEVICE_ID);
+  clientIDStr.concat(DEVICE_ID); // DEVICE_ID is defined in oilLevelLoggerSettings.h header file
   clientIDStr.toCharArray(clientID, clientIDStr.length()+1);
 
   // Timers are initialised

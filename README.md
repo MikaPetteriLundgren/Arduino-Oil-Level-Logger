@@ -17,6 +17,8 @@ All the data to the Domoticz is transmitted via WiFi in LAN using the MQTT proto
 In practice all the "intelligence" is in the Domoticz and therefore for example decision about is oil tank empty enough for notification
 to end user is done by the Domoticz.
 
+The sketch needs oilLevelLoggerSettings.h header file in order to work. The header file includes settings for the sketch.
+
 More information about the system can be found from the [Domoticz forum](https://www.domoticz.com/forum/viewtopic.php?f=38&t=8647)
 
 Arduino-Oil-Level-Logger sketch will need following SW libraries and HW to work:
