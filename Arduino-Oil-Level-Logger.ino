@@ -5,6 +5,8 @@
    if Wifi connection hasn't been established in 3 consecutive tries.
    Sketch includes a possibility to check the amount of free RAM and print more information about ultrasonic measurements.
 
+   An idea about how to sort arrays is based on the code found from Arduino forums http://forum.arduino.cc/index.php?topic=20920.0
+
    The sketch needs oilLevelLoggerSettings.h header file in order to work. The header file includes settings for the sketch.
    */
 #include "oilLevelLoggerSettings.h" // Header file containing settings for the sketch included. 
@@ -23,18 +25,18 @@ float temperature = 0; // Measured temperature of oil tank is stored to this var
 // Variables for ultrasonic sensor
 const int tofPin = 8; // Data pin of ultrasonic sensor
 float tofDistance = 0; // Measured distance in centimetres
-const int sampleAmount = 5; // Amount of samples to be measured. Average value is calculated from these samples excluding min and max values. Minimum sampleAmount is 3pcs.
-unsigned long tofValues[sampleAmount]; // Measured ToF values are stored to this array
+const int sampleAmount = 5; // Amount of samples to be measured. Median value is determined from the samples. sampleAmount needs to be an odd number.
+unsigned int tofValues[sampleAmount]; // Measured ToF values are stored to this array
 
 // Variables for oil tank
-const unsigned long width = 150; // Internal width of oil tank in centimetres
-const unsigned long depth = 200; // Internal depth/length of oil tank in centimetres
-const unsigned long height = 100; // Internal heigth of oil tank in centimetres
-const unsigned long heightOffset = 10; // Heigth offset in centimeters compared to top level of tank if ultrasonic sensor is attached for example on top of manhole's hatch etc.
-unsigned long maxVolume = 0; // Calculated max. volume of oil tank in cm^3
-unsigned long volume = 0; // Calculated current volume of oil tank in cm^3
-float fillRate = 0; // Calculated fill rate of oil tank
-const unsigned int measInterval = 300; // Oil tank measurement interval in seconds. Default value is 3600s (1h)
+const long width = 120; // Internal width of oil tank in centimetres
+const long depth = 284; // Internal depth/length of oil tank in centimetres
+const long height = 122; // Internal heigth of oil tank in centimetres
+const long heightOffset = 6; // Heigth offset in centimeters compared to top level of tank if ultrasonic sensor is attached for example on top of manhole's hatch etc.
+long maxVolume = 0; // Calculated max. volume of oil tank in cm^3
+long volume = 0; // Calculated current volume of oil tank in cm^3
+long fillRate = 0; // Calculated fill rate of oil tank
+const unsigned int measInterval = 3600; // Oil tank measurement interval in seconds. Default value is 3600s (1h)
 
 // OneWire and Dallas temperature sensors library are initialised
 #define ONE_WIRE_BUS 2 // OneWire data wire is connected to GPIO2 pin of the Arduino. Parasite powering scheme is used.
@@ -63,8 +65,8 @@ char msg[80];
 //MQTT variables
 const int temperatureSensordtype = 80; // dtype (device type of temperature sensor) is used to help creating MQTT payload
 const int percentageSensordtype = 2; // dtype (device type of percentage sensor) is used to help creating MQTT payload
-const int temperatureSensorIDX = 449; // IDX number of temperature sensor
-const int percentageSensorIDX = 450; // IDX number of percentage sensor
+const int temperatureSensorIDX = 17; // IDX number of temperature sensor
+const int percentageSensorIDX = 18; // IDX number of percentage sensor
 
 //#define DEBUG // Uncomment this line if there is no need to print debug information via serial port
 //#define RAM_DEBUG // Uncomment this line if there is no need to print RAM debug information via serial port
@@ -257,77 +259,63 @@ void readToFSensor()
   Serial.println(F("cm"));
 }
 
-// Function measures as many ToF values as defined in sampleAmount variable. Function calculates and returns average value from the measurements excluding min and max values
-unsigned long measureToFValues()
+// Function measures as many ToF values as defined in sampleAmount variable. Function determines and returns median value of the measurements.
+unsigned int measureToFValues()
 {
-  unsigned long total = 0; // Sum of measured ToF values are stored to this variable
-  unsigned long tofValue = 0; // Variable for calculated ToF value
+  unsigned int tofValue = 0; // Variable for calculated ToF value
   
   for (int i = 0; i < sampleAmount; i = i + 1) 
   {
     tofValues[i] = pulseIn(tofPin, HIGH);
-
-    #if defined DEBUG
-    Serial.print(F("Measured value is: "));
-    Serial.print(tofValues[i]);
-    Serial.println(F(""));
-    #endif
-    
-    total += tofValues[i];
-    
     delay(100); // Minimum delay 50ms because readings of MB1010 sensor can occur up to every 50ms
   }
 
-  tofValue = ((total - getMin() - getMax()) / (sampleAmount - 2)); // Min and max values are excluded from average calculation
+  #if defined DEBUG
+    Serial.print(F("Measured unsorted values are: "));
+    printArray(tofValues, sampleAmount);
+  #endif
+
+  sortAscending(tofValues, sampleAmount);
+
+  #if defined DEBUG
+    Serial.print(F("Measured sorted values are: "));
+    printArray(tofValues, sampleAmount);
+  #endif
+
+  int medianValue = sampleAmount / 2; // Determine middle index of an array
+  tofValue = tofValues[medianValue]; // Median value is the middle value of an array
+  Serial.print("Median value is: ");
+  Serial.println(tofValue);
   
-  Serial.print(F("Average of measured values (excluding min and max values) is: "));
-  Serial.print(tofValue);
-  Serial.println(F(""));
   return tofValue;
 }
 
-// Function getMin returns minimun value from the tofValues array
-unsigned long getMin()
+// Function sortAscending sorts values of the array to ascending order
+void sortAscending(unsigned int *a, int n) // *a is an array pointer function          
 {
-  unsigned long minValue = tofValues[0]; // First value from array is used as a base value where rest of the values are compared
-  
-  for (int i = 1; i < sampleAmount; i = i + 1) // i = 0 not needed in this case
-  {
-    if (tofValues[i] < minValue)
-      {
-        minValue = tofValues[i];
-      }
-  }
-
-  #if defined DEBUG
-  Serial.print(F("Minimum value is: "));
-  Serial.print(minValue);
-  Serial.println(F(""));
-  #endif
-  
-  return minValue;
+ for (int i = 1; i < n; ++i)
+ {
+   int j = a[i];
+   int k;
+   for (k = i - 1; (k >= 0) && (j < a[k]); k--)
+   {
+     a[k + 1] = a[k];
+   }
+   a[k + 1] = j;
+ }
 }
 
-// Function getMax returns maximum value from the tofValues array
-unsigned long getMax()
+// Function printArray prints values of the array
+void printArray(unsigned int *a, int n) // *a is an array pointer function
 {
-  unsigned long maxValue = tofValues[0]; // First value from array is used as a base value where rest of the values are compared
-  
-  for (int i = 1; i < sampleAmount; i = i + 1) // i = 0 not needed in this case
-  {
-    if (tofValues[i] > maxValue)
-      {
-        maxValue = tofValues[i];
-      }
-  }
-
-  #if defined DEBUG
-  Serial.print(F("Maximum value is: "));
-  Serial.print(maxValue);
-  Serial.println(F(""));
-  #endif
-  
-  return maxValue;
+ 
+ for (int i = 0; i < n; i++)
+ {
+   Serial.print(a[i], DEC);
+   Serial.print(' ');
+ }
+ 
+ Serial.println();
 }
 
 // Function calculates current amount of oil in litres and prints the volume and fill rate
