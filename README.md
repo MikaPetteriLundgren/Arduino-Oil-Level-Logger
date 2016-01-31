@@ -61,10 +61,9 @@ needs to be reset as well in order to get it working again.
 Volume of oil tank is calculated only in setup() based on dimensions of the oil tank. Timings of temperature and oil level measurements are taken care by timer. 
 Both measurements will take place once the timer triggers. Once the timer triggers, temperature is measured and sent to the Domoticz using the MQTT protocol.
 
-Next ToF (Time of Flight) is measured with the ultrasonic sensor. By default 5 measurements are done. Measured values are filtered (min and max values are excluded) and
-average is calculated from rest of the values. Median or mode filtering could be used if filtering and averaging doesn't provide robust results.
+Next ToF (Time of Flight) is measured with the ultrasonic sensor. By default 5 measurements are done. Measured values are filtered using median filtering (median value is used in calculations).
 
-Distance between the sensor and level of the oil is calculated using the measured temperature and filtered and averaged ToF data (speed of sound changes in a function of the temperature).
+Distance between the sensor and level of the oil is calculated using the measured temperature and Tof value (speed of sound changes in a function of the temperature).
 Once the distance is known, actual volume and fill rate of oil tank is calculated and sent to the Domoticz using the MQTT protocol. If tank has a manhole which has some offset to top of tank,
 it can be taken into account in the volume and fill rate calculations.
 
