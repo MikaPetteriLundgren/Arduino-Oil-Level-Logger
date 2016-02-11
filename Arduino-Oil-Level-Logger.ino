@@ -295,8 +295,8 @@ void sortAscending(unsigned int *a, int n) // *a is an array pointer function
 {
  for (int i = 1; i < n; ++i)
  {
-   int j = a[i];
-   int k;
+   unsigned int j = a[i];
+   unsigned int k;
    for (k = i - 1; (k >= 0) && (j < a[k]); k--)
    {
      a[k + 1] = a[k];
