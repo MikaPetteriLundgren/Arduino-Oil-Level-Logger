@@ -10,7 +10,7 @@ fill rate of oil tank. The Arduino oli level logger includes following features:
 
 Temperature readings are read from DS18B20 digital temperature sensor via OneWire bus and Dallas Temperature Control Library.
 Time of flight data is read from the ultrasonic sensor using pulse width output. The temperature data is used in calculations
-about actual distance from the sensor to level of oil. Volumetric expansion of the oil can be taken into account if needed.
+about actual distance from the sensor to level of oil. Thermal expansion of the oil can be taken into account if needed.
 
 All the data to the Domoticz is transmitted via WiFi in LAN using the MQTT protocol.
 
