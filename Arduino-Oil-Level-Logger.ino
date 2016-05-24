@@ -1,15 +1,15 @@
 /*
-   Temperature readings from oil tank is measured with DS18B20 digital temperature sensor connected via OneWire. 
+   Temperature readings from oil tank is measured with DS18B20 digital temperature sensor connected via OneWire.
    Ultrasonic sensor used in this application is MB1010 from MaxBotix. Temperature and fill rate values are sent to Domoticz server via Wifi shield using MQTT protocol.
    R7 is mounted (0R) in Wifi shield in order to reset the shield at startup. System reset will take place if MQTT connection has failed 5 times altogether or
-   if Wifi connection hasn't been established in 3 consecutive tries.
+   if Wifi connection hasn't been established in 3 consecutive tries. There is also possibility to take thermal expansion of oil into account in calculations.
    Sketch includes a possibility to check the amount of free RAM and print more information about ultrasonic measurements.
 
    An idea about how to sort arrays is based on the code found from Arduino forums http://forum.arduino.cc/index.php?topic=20920.0
 
    The sketch needs oilLevelLoggerSettings.h header file in order to work. The header file includes settings for the sketch.
    */
-#include "oilLevelLoggerSettings.h" // Header file containing settings for the sketch included. 
+#include "oilLevelLoggerSettings.h" // Header file containing settings for the sketch included.
 #include <WiFi.h>
 #include <OneWire.h>
 #include <SPI.h>
@@ -37,6 +37,9 @@ long maxVolume = 0; // Calculated max. volume of oil tank in cm^3
 long volume = 0; // Calculated current volume of oil tank in cm^3
 long fillRate = 0; // Calculated fill rate of oil tank
 const unsigned int measInterval = 3600; // Oil tank measurement interval in seconds. Default value is 3600s (1h)
+const float expansionCoefficent = 0.0007; // Volumetric coefficient of expansion of oil (1/DegC)
+const boolean expansionCalculationEnabled = true; // true = thermal expansion calculation of oil enabled; false = thermal expansion calculation of oil disabled
+const int referenceOilTemperature = 3; // Reference temperature in degC used in thermal expansion calculation
 
 // OneWire and Dallas temperature sensors library are initialised
 #define ONE_WIRE_BUS 2 // OneWire data wire is connected to GPIO2 pin of the Arduino. Parasite powering scheme is used.
@@ -51,7 +54,7 @@ IPAddress ip; // IP address
 WiFiClient wifiClient; // Initialize Arduino Wifi Client
 
 //MQTT configuration
-char topic[] = "domoticz/in"; // Default incoming topic in Domoticz is domoticz/in
+char topic[] = MQTT_TOPIC; // Default incoming topic in Domoticz is domoticz/in
 int mqttConnectionFails = 0; // If MQTT connection is disconnected for some reason, this variable is increment by 1
 
 // MQTT callback function header
@@ -198,7 +201,7 @@ void sendMQTTPayload(String payload) // Sends MQTT payload to the MQTT server ru
         mqttConnectionFails +=1; // // If MQTT connection is disconnected for some reason, this variable is increment by 1
         WiFi.disconnect();
         (WL_DISCONNECTED) ? Serial.println(F("Wifi disconnected")) : Serial.println(F("Wifi still connected for some reason...")); //condition ? valueIfTrue : valueIfFalse - This is a Ternary operator
-        startWiFi(); 
+        startWiFi();
       }
 
       // Arduino and Wifi shield to be reset if MQTT connection has been disconnected 5 times altogether
@@ -234,20 +237,20 @@ void measFunction() /* Function measFunction reads temperature from DS18B20 sens
 {
 	Serial.println(F("Requesting temperature from oil tank sensor..."));
   temperature = tempReading(); // TempReading function is called
-  
+
   // Measured temperature is printed
   Serial.print(F("Temperature: "));
   Serial.print(temperature);
   Serial.println(F("DegC"));
 
-	sendMQTTPayload(createMQTTPayload(temperatureSensorIDX, temperatureSensordtype)); //Send measured temperature value to MQTT broker running on a Raspberry Pi
-	delay(1000); // Delay added in order to provide some time for Domoticz to process incoming data
+  sendMQTTPayload(createMQTTPayload(temperatureSensorIDX, temperatureSensordtype)); //Send measured temperature value to MQTT broker running on a Raspberry Pi
+  delay(1000); // Delay added in order to provide some time for Domoticz to process incoming data
 
 	// Fill level of oil tank is measured and sent to Domoticz
   Serial.println(F("Fill rate of oil tank to be measured..."));
   readToFSensor();
   calculateVolume();
-	sendMQTTPayload(createMQTTPayload(percentageSensorIDX, percentageSensordtype)); //Send calculated fill rate to MQTT broker running on a Raspberry Pi
+  sendMQTTPayload(createMQTTPayload(percentageSensorIDX, percentageSensordtype)); //Send calculated fill rate to MQTT broker running on a Raspberry Pi
 }
 
 // Function calculates temperature compensated distance from top of oil tank to level of oil
@@ -263,8 +266,8 @@ void readToFSensor()
 unsigned int measureToFValues()
 {
   unsigned int tofValue = 0; // Variable for calculated ToF value
-  
-  for (int i = 0; i < sampleAmount; i = i + 1) 
+
+  for (int i = 0; i < sampleAmount; i = i + 1)
   {
     tofValues[i] = pulseIn(tofPin, HIGH);
     delay(100); // Minimum delay 50ms because readings of MB1010 sensor can occur up to every 50ms
@@ -286,12 +289,12 @@ unsigned int measureToFValues()
   tofValue = tofValues[medianValue]; // Median value is the middle value of an array
   Serial.print("Median value is: ");
   Serial.println(tofValue);
-  
+
   return tofValue;
 }
 
 // Function sortAscending sorts values of the array to ascending order
-void sortAscending(unsigned int *a, int n) // *a is an array pointer function          
+void sortAscending(unsigned int *a, int n) // *a is an array pointer function
 {
  for (int i = 1; i < n; ++i)
  {
@@ -308,13 +311,13 @@ void sortAscending(unsigned int *a, int n) // *a is an array pointer function
 // Function printArray prints values of the array
 void printArray(unsigned int *a, int n) // *a is an array pointer function
 {
- 
+
  for (int i = 0; i < n; i++)
  {
    Serial.print(a[i], DEC);
    Serial.print(' ');
  }
- 
+
  Serial.println();
 }
 
@@ -322,22 +325,32 @@ void printArray(unsigned int *a, int n) // *a is an array pointer function
 void calculateVolume()
 {
   volume = width * depth * (height + heightOffset - tofDistance);
-  
-  Serial.print(F("Current amount of oil is "));
+
+  Serial.print(F("Current amount of oil without thermal expansion correction is "));
   Serial.print(volume/1000); // volume needs to be divided by 1000 in order to get volume in litres
-  Serial.print(F(" litres and fill rate is "));
-  fillRate = 100 * volume / maxVolume;
-  Serial.print(fillRate); // Fill rate needs to be multiplied by 100 in order to get fill rate as a percentage
+  Serial.println(F(" litres"));
+
+  if (expansionCalculationEnabled)
+  {
+	  volume = volume + (volume * expansionCoefficent * (referenceOilTemperature - temperature)); // Formula can be found from http://www.engineeringtoolbox.com/volumetric-temperature-expansion-d_315.html
+	  Serial.print(F("Current amount of oil with thermal expansion correction is "));
+	  Serial.print(volume/1000); // volume needs to be divided by 1000 in order to get volume in litres
+	  Serial.println(F(" litres"));
+  }
+
+  fillRate = 100 * volume / maxVolume; // Fill rate needs to be multiplied by 100 in order to get fill rate as a percentage
+  Serial.print(F("Fill rate is "));
+  Serial.print(fillRate);
   Serial.println(F("%"));
 }
 
 void startWiFi()
 {
   int resetCounter = 0;
-  
+
   // Attempt to connect to Wifi network:
-  while (status != WL_CONNECTED) 
-  { 
+  while (status != WL_CONNECTED)
+  {
 
     // If Wifi connection hasn't been established in 3 consecutive tries, watchdog reset to be applied
     if(resetCounter > 2)
@@ -349,20 +362,20 @@ void startWiFi()
      // Connect to WPA/WPA2 network
     Serial.print(F("Attempting to connect to WiFi network: "));
     Serial.println(ssid);
-    Serial.println(F("Wait 10s for connection")); 
+    Serial.println(F("Wait 10s for connection"));
     status = WiFi.begin(ssid, pass);
 
     // wait 10 seconds for connection:
     delay(10000);
     resetCounter++;
   }
-  
+
   // You're connected now, so print out the local ip address of the WiFi shield:
   Serial.println(F("Connected to the network using DHCP"));
   Serial.print(F("IP address: "));
   ip = WiFi.localIP();
   Serial.println(ip);
-  
+
 }
 
 // variables created by the build process when compiling the sketch. Used in memoryFree function

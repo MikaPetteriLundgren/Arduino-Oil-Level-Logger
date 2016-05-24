@@ -10,7 +10,7 @@ fill rate of oil tank. The Arduino oli level logger includes following features:
 
 Temperature readings are read from DS18B20 digital temperature sensor via OneWire bus and Dallas Temperature Control Library.
 Time of flight data is read from the ultrasonic sensor using pulse width output. The temperature data is used in calculations
-about actual distance from the sensor to level of oil. Thermal expansion of the oil is not taken into account.
+about actual distance from the sensor to level of oil. Volumetric expansion of the oil can be taken into account if needed.
 
 All the data to the Domoticz is transmitted via WiFi in LAN using the MQTT protocol.
 
@@ -64,8 +64,8 @@ Both measurements will take place once the timer triggers. Once the timer trigge
 Next ToF (Time of Flight) is measured with the ultrasonic sensor. By default 5 measurements are done. Measured values are filtered using median filtering (median value is used in calculations).
 
 Distance between the sensor and level of the oil is calculated using the measured temperature and Tof value (speed of sound changes in a function of the temperature).
-Once the distance is known, actual volume and fill rate of oil tank is calculated and sent to the Domoticz using the MQTT protocol. If tank has a manhole which has some offset to top of tank,
-it can be taken into account in the volume and fill rate calculations.
+Once the distance is known, actual volume and fill rate of oil tank is calculated and sent to the Domoticz using the MQTT protocol. Thermal expansion of the oil can be taken into account in calculations
+by setting expansionCalculationEnabled variable true/false. If tank has a manhole which has some offset to top of tank, it can be taken into account in the volume and fill rate calculations.
 
 IDX values of the sensors and measured values are added to the MQTT payload (payload differs depends on a type of a sensor (temperature vs percentage)). 
 The created MQTT payload is sent to MQTT server. It's constantly checked in main loop is MQTT connection alive in order to maintain connection to MQTT server. 
